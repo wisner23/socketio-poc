@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>socket</title>
+
+    <script src="/socket.io/socket.io.js"> </script>
+    <script src="//code.jquery.com/jquery-2.1.4.min.js"></script>
+    <script src="modules/mustache/mustache.min.js"></script>
+
+    <script type="text/javascript">
+        
+        $(document).ready(()=>{
+            const socket = io('http://localhost:3000')
+            let socket_id = null
+            let users = []
+            let messages = []
+
+            let messagesTemplates = $('#mensagens-tmpl').html()
+            Mustache.parse(messagesTemplates)
+
+            usersTemplate = $('#users-tmpl').html()
+            Mustache.parse(usersTemplate)
+
+            let renderTemplate = function(template, data, target){
+                let rendered = Mustache.render(template, data)
+                target.html(rendered)
+            }
+
+            socket.on('connected', (data) => {
+                if(socket_id == null){
+                    
+                    socket_id = data.socket_id    
+                    let name = prompt('Qual seu nome ?', '')
+                    
+                    console.log({name: name, socket_id: socket_id})
+
+                    socket.emit('connected-ack', {name})
+
+                }
+                console.log(data)
+            })
+
+            socket.on('user-connected', (data) => {
+                users = data.users
+                messages = data.messages
+                renderTemplate(usersTemplate, {users: users}, $('#users-container'))
+                renderTemplate(messagesTemplates, {messages: messages}, $('#mensagens-container'))
+            })
+
+            socket.on('user-new-message', (data) => {
+                messages = data.messages
+                console.log(messages)
+                renderTemplate(messagesTemplates, {messages: messages}, $('#mensagens-container'))
+            })
+
+            $("#enviar").click((e) => {
+                e.preventDefault()
+
+                let msg = $('#input-msg').val()
+                socket.emit('new-message', {msg})
+                $('#input-msg').val('')
+            })
+
+            $('.sala').click((e) => {
+                let sala = $(e.target).attr('room')
+                socket.emit('join-room', {room: sala})
+
+                $('#salaAtual').html(`Sala ${sala}`)
+            })
+        })    
+        
+
+    </script>
+</head>
+<body>
+        <h1>Websockets Chat</h1>  
+        <h3>Bem vindo <span id="nomeUsuario"></span>   
+        <input type="text" id="input-msg">  
+        <button type="submit" id="enviar">Enviar</button>      
+        <br><br>          
+        <button class="sala" room="global">Sala Global</button>
+        <button class="sala" room="1">Sala 1</button>
+        <button class="sala" room="2">Sala 2</button>           
+        <br><br><br>           
+        Sala atual: <span id="salaAtual">Sala Global</span>
+        <br><br><br>           
+        Mensagens <script id="mensagens-tmpl" type="x-tmpl-mustache">
+            <ul id="mensagens">
+                {{#messages}}
+                <li class="mensagens-item">{{name}} - {{msg}}</li>
+                {{/messages}}
+            </ul>
+        </script>          <div id="mensagens-container"></div>
+        <br><br><br>           
+        Usuarios
+        <script id="users-tmpl" type="x-tmpl-mustache">
+            <ul id="users">
+                {{#users}}
+                <li class="users-item">{{id}} - {{name}}</li>
+                {{/users}}
+            </ul>
+        </script>          
+        <div id="users-container"> </div>
+</body>
+</html>
